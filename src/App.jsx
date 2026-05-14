@@ -15,6 +15,7 @@ function App() {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('spotify_token');
@@ -28,7 +29,7 @@ function App() {
     
     if (code) {
       if (!SPOTIFY_CLIENT_SECRET) {
-        console.error("VITE_SPOTIFY_CLIENT_SECRET não configurada!");
+        setError("Erro: VITE_SPOTIFY_CLIENT_SECRET não configurada no servidor.");
         return;
       }
 
@@ -52,9 +53,11 @@ function App() {
             localStorage.setItem('spotify_token', data.access_token);
             setToken(data.access_token);
             window.history.replaceState(null, '', window.location.pathname);
+          } else if (data.error) {
+            setError(`Erro no Token: ${data.error_description || data.error}`);
           }
         })
-        .catch(err => console.error("Erro na requisição de token", err));
+        .catch(err => setError("Erro na conexão com o Spotify para obter token."));
     }
   }, []);
 
@@ -66,6 +69,7 @@ function App() {
   }, [token]);
 
   const handleLogin = () => {
+    setError(null);
     const scope = 'user-read-private user-read-email user-read-recently-played playlist-modify-public playlist-modify-private';
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}`;
     window.location.href = authUrl;
@@ -78,6 +82,7 @@ function App() {
     setGenres([]);
     setSelectedGenres([]);
     setRecommendations([]);
+    setError(null);
   };
 
   const fetchUser = async () => {
@@ -95,14 +100,23 @@ function App() {
 
   const fetchGenres = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch('https://api.spotify.com/v1/recommendations/available-genre-seeds', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      if (!response.ok) throw new Error(`Falha ao buscar gêneros: ${response.status}`);
+      
       const data = await response.json();
-      setGenres(data.genres || []);
+      if (data.genres) {
+        setGenres(data.genres);
+      } else {
+        throw new Error("Nenhum gênero retornado da API.");
+      }
     } catch (error) {
-      console.error("Erro ao buscar gêneros:", error);
+      setError("Não foi possível carregar os gêneros. Verifique sua conexão.");
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -111,7 +125,7 @@ function App() {
   const toggleGenre = (genre) => {
     if (selectedGenres.includes(genre)) {
       setSelectedGenres(selectedGenres.filter(g => g !== genre));
-    } else if (selectedGenres.length < 5) {
+    } else if (selectedGenres.length < 3) { // Limitado a 3 para deixar 2 sementes para faixas
       setSelectedGenres([...selectedGenres, genre]);
     }
   };
@@ -119,26 +133,40 @@ function App() {
   const generateMix = async () => {
     if (selectedGenres.length === 0) return;
     setGenerating(true);
+    setError(null);
+    setRecommendations([]);
+    
     try {
-      // Passo 1: Pegar as últimas 2 faixas ouvidas para usar como sementes
+      // Passo 1: Pegar histórico
       const historyRes = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=2', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const historyData = await historyRes.json();
-      const seedTracks = historyData.items?.map(item => item.track.id).join(',') || '';
+      
+      let seedTracks = '';
+      if (historyRes.ok) {
+        const historyData = await historyRes.json();
+        seedTracks = historyData.items?.map(item => item.track.id).join(',') || '';
+      }
 
-      // Passo 2: Gerar recomendações baseadas nos gêneros (3) e faixas (2)
-      // Spotify aceita no máximo 5 sementes totais.
-      const genreSeeds = selectedGenres.slice(0, 3).join(',');
-      const url = `https://api.spotify.com/v1/recommendations?limit=15&seed_genres=${genreSeeds}&seed_tracks=${seedTracks}`;
+      // Passo 2: Recomendações
+      const genreSeeds = selectedGenres.join(',');
+      const url = `https://api.spotify.com/v1/recommendations?limit=15&seed_genres=${genreSeeds}${seedTracks ? `&seed_tracks=${seedTracks}` : ''}`;
       
       const recRes = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      if (!recRes.ok) throw new Error("Falha ao gerar recomendações.");
+      
       const recData = await recRes.json();
-      setRecommendations(recData.tracks || []);
+      if (recData.tracks && recData.tracks.length > 0) {
+        setRecommendations(recData.tracks);
+      } else {
+        setError("O Spotify não encontrou músicas para essa combinação. Tente outros gêneros!");
+      }
     } catch (error) {
-      console.error("Erro ao gerar mix:", error);
+      setError("Erro ao gerar seu mix musical.");
+      console.error(error);
     } finally {
       setGenerating(false);
     }
@@ -159,22 +187,33 @@ function App() {
           <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Qual é a vibe de hoje?</h1>
           <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Escolha até 3 gêneros para misturarmos com o seu histórico recente.</p>
 
-          <div className="genre-container">
-            {genres.map(genre => (
-              <div 
-                key={genre} 
-                className={`genre-chip ${selectedGenres.includes(genre) ? 'selected' : ''}`}
-                onClick={() => toggleGenre(genre)}
-              >
-                {genre}
-              </div>
-            ))}
-          </div>
+          {error && (
+            <div style={{ backgroundColor: 'rgba(255, 0, 0, 0.1)', color: '#ff4444', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '2rem', width: '100%', maxWidth: '500px' }}>
+              {error}
+              {error.includes("gêneros") && <button onClick={fetchGenres} style={{ background: 'none', border: 'none', color: 'white', textDecoration: 'underline', marginLeft: '10px', cursor: 'pointer' }}>Tentar novamente</button>}
+            </div>
+          )}
+
+          {loading ? (
+            <p style={{ color: 'var(--text-muted)' }}>Carregando gêneros disponíveis...</p>
+          ) : (
+            <div className="genre-container">
+              {genres.map(genre => (
+                <div 
+                  key={genre} 
+                  className={`genre-chip ${selectedGenres.includes(genre) ? 'selected' : ''}`}
+                  onClick={() => toggleGenre(genre)}
+                >
+                  {genre}
+                </div>
+              ))}
+            </div>
+          )}
 
           <button 
             className="btn btn-primary" 
             onClick={generateMix}
-            disabled={selectedGenres.length === 0 || generating}
+            disabled={selectedGenres.length === 0 || generating || loading}
             style={{ marginTop: '2rem', minWidth: '200px' }}
           >
             {generating ? 'Misturando...' : 'Gerar Meu Mix 🚀'}
@@ -185,7 +224,7 @@ function App() {
               <h3 style={{ margin: '3rem 0 1.5rem 0', textAlign: 'left' }}>Seu Mix Sugerido:</h3>
               {recommendations.map(track => (
                 <div key={track.id} className="track-card">
-                  <img src={track.album.images[2]?.url} alt={track.name} className="track-img" />
+                  <img src={track.album.images[2]?.url || track.album.images[0]?.url} alt={track.name} className="track-img" />
                   <div className="track-info">
                     <h4>{track.name}</h4>
                     <p>{track.artists.map(a => a.name).join(', ')}</p>
@@ -207,6 +246,9 @@ function App() {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }} className="animate-fade-in">
         <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎧✨</div>
         <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}><span className="text-gradient">SpotiMix</span></h1>
+        
+        {error && <div style={{ color: '#ff4444', marginBottom: '1rem' }}>{error}</div>}
+
         <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '500px', marginBottom: '3rem' }}>
           Gere playlists perfeitas baseadas no seu gosto musical.
         </p>
