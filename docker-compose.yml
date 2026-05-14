@@ -2,30 +2,21 @@ version: '3.8'
 
 services:
   web-app:
-    image: nginx:alpine
+    # A linha abaixo manda o Portainer ler o arquivo Dockerfile desta mesma pasta
+    # para compilar e montar a imagem completa.
+    build: .
     container_name: spotimix
     restart: unless-stopped
     
     # --- GESTÃO DE VARIÁVEIS PRIVADAS ---
     environment:
-      # O valor real NÃO fica aqui. Fica no Portainer.
       - SPOTIFY_API_KEY=${SPOTIFY_API_KEY}
       - DB_PASSWORD=${DB_PASSWORD}
       - APP_ENV=production
+      
+    # O bloco command foi removido, pois o Dockerfile já cuida de colocar os arquivos originais dentro do NGINX.
+    # O volume também foi removido, pois agora os arquivos são "injetados" dentro da imagem durante o build.
     
-    volumes:
-      # Mapeamento do host no seu servidor.
-      - /home/filipe/stacks/spotimix/html:/usr/share/nginx/html
-      
-    # O "Cérebro" da automação: Injeta um index.html padrão caso a pasta esteja vazia
-    command: >
-      /bin/sh -c "
-      if [ ! -f /usr/share/nginx/html/index.html ]; then
-        echo '<!DOCTYPE html><html><body style=\"background:#121212;color:#1ed760;font-family:sans-serif;text-align:center;padding-top:20%\"><h1>🚀 Infraestrutura fvds.dev</h1><p>Site provisionado via IaC com sucesso. Aguardando deploy de arquivos do SpotiMix.</p></body></html>' > /usr/share/nginx/html/index.html;
-      fi;
-      exec nginx -g 'daemon off;'
-      "
-      
     networks:
       - fvds-network
 
