@@ -2,20 +2,19 @@ version: '3.8'
 
 services:
   web-app:
-    # A linha abaixo manda o Portainer ler o arquivo Dockerfile desta mesma pasta
-    # para compilar e montar a imagem completa.
-    build: .
+    build:
+      context: .
+      args:
+        - VITE_SPOTIFY_CLIENT_ID=${VITE_SPOTIFY_CLIENT_ID}
+        - VITE_SPOTIFY_CLIENT_SECRET=${VITE_SPOTIFY_CLIENT_SECRET}
     container_name: spotimix
     restart: unless-stopped
     
     # --- GESTÃO DE VARIÁVEIS PRIVADAS ---
     environment:
-      - SPOTIFY_API_KEY=${SPOTIFY_API_KEY}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - VITE_SPOTIFY_CLIENT_ID=${VITE_SPOTIFY_CLIENT_ID}
+      - VITE_SPOTIFY_CLIENT_SECRET=${VITE_SPOTIFY_CLIENT_SECRET}
       - APP_ENV=production
-      
-    # O bloco command foi removido, pois o Dockerfile já cuida de colocar os arquivos originais dentro do NGINX.
-    # O volume também foi removido, pois agora os arquivos são "injetados" dentro da imagem durante o build.
     
     networks:
       - fvds-network
