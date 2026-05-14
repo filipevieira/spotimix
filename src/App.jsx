@@ -107,7 +107,7 @@ function App() {
         </header>
 
         <main style={{ flex: 1 }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Últimas Músicas Ouvidas no Spotify</h3>
+          <h3 style={{ marginBottom: '1.5rem' }}>Últimas Músicas Ouvidas no Spotify 🚀</h3>
           
           {loading ? (
             <p style={{ color: 'var(--text-muted)' }}>Carregando seu histórico...</p>
@@ -140,7 +140,7 @@ function App() {
     <div className="app-container">
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }} className="animate-fade-in">
         <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
-          🎧
+          🎧✨
         </div>
         <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>
           <span className="text-gradient">SpotiMix</span>
