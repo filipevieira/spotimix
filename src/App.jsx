@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 
-// Usando variáveis de ambiente do Vite (prefixo VITE_)
+// O Vite exige o prefixo VITE_ para que as variáveis sejam injetadas no cliente
 const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '7412257ac88b425980fc54ce430f2f36'; 
 const SPOTIFY_CLIENT_SECRET = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET;
 const REDIRECT_URI = window.location.hostname === 'localhost' 
   ? 'http://localhost:5173/callback' 
-  : 'https://spotimix.com.br/callback';
+  : 'https://spotimix.fvds.dev/callback';
 
 function App() {
   const [token, setToken] = useState(null);
@@ -24,7 +24,6 @@ function App() {
     const code = urlParams.get('code');
     
     if (code) {
-      // Validação básica para evitar erro se a Secret estiver faltando
       if (!SPOTIFY_CLIENT_SECRET) {
         console.error("VITE_SPOTIFY_CLIENT_SECRET não configurada!");
         return;
