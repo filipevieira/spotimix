@@ -10,6 +10,11 @@ services:
     container_name: spotimix
     restart: unless-stopped
     
+    # --- MAPEAMENTO DE PORTA DINÂMICO ---
+    ports:
+      # Sintaxe: '${VARIAVEL:-VALOR_PADRAO}:PORTA_INTERNA'
+      - '${PORTA_DO_HOST:-8080}:80'
+    
     # --- GESTÃO DE VARIÁVEIS PRIVADAS ---
     environment:
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
