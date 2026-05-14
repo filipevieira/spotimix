@@ -5,11 +5,11 @@ const SPOTIFY_CLIENT_ID = '7412257ac88b425980fc54ce430f2f36';
 const SPOTIFY_CLIENT_SECRET = '62f549ef71704fd08cd04603da577269';
 const REDIRECT_URI = window.location.hostname === 'localhost' 
   ? 'http://localhost:5173/callback' 
-  : 'https://spotmix.fvds.dev/callback';
+  : 'https://spotimix.com.br/callback';
 
 function App() {
   const [token, setToken] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -43,8 +43,6 @@ function App() {
             localStorage.setItem('spotify_token', data.access_token);
             setToken(data.access_token);
             window.history.replaceState(null, '', window.location.pathname);
-          } else {
-            console.error("Erro ao pegar token", data);
           }
         })
         .catch(err => console.error("Erro na requisição de token", err));
@@ -53,13 +51,12 @@ function App() {
 
   useEffect(() => {
     if (token) {
-      fetchHistory();
+      fetchUser();
     }
   }, [token]);
 
   const handleLogin = () => {
-    const scope = 'user-read-recently-played playlist-modify-public playlist-modify-private';
-    
+    const scope = 'user-read-private user-read-email user-read-recently-played playlist-modify-public playlist-modify-private';
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}`;
     window.location.href = authUrl;
   };
@@ -67,13 +64,13 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('spotify_token');
     setToken(null);
-    setHistory([]);
+    setUser(null);
   };
 
-  const fetchHistory = async () => {
+  const fetchUser = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=20', {
+      const response = await fetch('https://api.spotify.com/v1/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -85,12 +82,9 @@ function App() {
       }
 
       const data = await response.json();
-      
-      if (data.items) {
-        setHistory(data.items);
-      }
+      setUser(data);
     } catch (error) {
-      console.error("Erro ao buscar histórico:", error);
+      console.error("Erro ao buscar usuário:", error);
     } finally {
       setLoading(false);
     }
@@ -106,31 +100,26 @@ function App() {
           </button>
         </header>
 
-        <main style={{ flex: 1 }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Últimas Músicas Ouvidas no Spotify 🚀</h3>
-          
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           {loading ? (
-            <p style={{ color: 'var(--text-muted)' }}>Carregando seu histórico...</p>
-          ) : history.length > 0 ? (
-            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-              {history.map((item, index) => {
-                const track = item.track;
-                return (
-                  <div key={`${track.id}-${index}`} className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem' }}>
-                    {track.album.images[0] && (
-                      <img src={track.album.images[0].url} alt={track.album.name} style={{ width: '60px', height: '60px', borderRadius: 'var(--radius-sm)' }} />
-                    )}
-                    <div>
-                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{track.name}</h4>
-                      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.875rem' }}>{track.artists.map(a => a.name).join(', ')}</p>
-                    </div>
-                  </div>
-                );
-              })}
+            <p style={{ color: 'var(--text-muted)' }}>Carregando perfil...</p>
+          ) : user ? (
+            <div className="card animate-fade-in" style={{ textAlign: 'center', maxWidth: '400px', width: '100%' }}>
+              {user.images?.[0] ? (
+                <img src={user.images[0].url} alt={user.display_name} style={{ width: '120px', height: '120px', borderRadius: 'var(--radius-full)', marginBottom: '1.5rem', border: '4px solid var(--primary)' }} />
+              ) : (
+                <div style={{ width: '120px', height: '120px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--bg-card-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', margin: '0 auto 1.5rem auto' }}>
+                  👤
+                </div>
+              )}
+              <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Olá, {user.display_name}! ✨</h1>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Conectado com sucesso ao SpotiMix.</p>
+              
+              <div style={{ backgroundColor: 'rgba(29, 185, 84, 0.1)', padding: '1rem', borderRadius: 'var(--radius-md)', color: '#1DB954', fontWeight: '500' }}>
+                Pronto para gerar sua próxima playlist.
+              </div>
             </div>
-          ) : (
-            <p style={{ color: 'var(--text-muted)' }}>Nenhuma música encontrada no seu histórico recente.</p>
-          )}
+          ) : null}
         </main>
       </div>
     );
@@ -146,7 +135,7 @@ function App() {
           <span className="text-gradient">SpotiMix</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '500px', marginBottom: '3rem', lineHeight: '1.6' }}>
-          Gere playlists incríveis combinando seus gêneros favoritos com as músicas que você não consegue parar de ouvir.
+          Acesse para visualizar seu perfil e preparar sua curadoria musical.
         </p>
         <button className="btn btn-primary" onClick={handleLogin} style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}>
           Conectar ao Spotify
