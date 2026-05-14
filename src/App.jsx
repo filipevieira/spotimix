@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import './index.css';
 
 // O Vite exige o prefixo VITE_ para que as variáveis sejam injetadas no cliente
-const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID; 
+const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '7412257ac88b425980fc54ce430f2f36'; 
 const SPOTIFY_CLIENT_SECRET = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET;
 const REDIRECT_URI = window.location.hostname === 'localhost' 
   ? 'http://localhost:5173/callback' 
